@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Json;
 using OpenDisplay.Protocol;
 using OpenDisplay.Protocol.Video;
+using OpenDisplay.Windows.Video;
 
 namespace OpenDisplay.Windows.Protocol;
 
@@ -17,6 +18,9 @@ public class OpenDisplayConnection
 
     private readonly DisplayConfiguration _display;
     private readonly ReceiverIdentity _identity;
+
+    private readonly H264AccessUnitAssembler _assembler;
+    private readonly H264Decoder _decoder;
 
     private readonly SemaphoreSlim _writeLock = new(1, 1);
 
@@ -32,6 +36,9 @@ public class OpenDisplayConnection
 
         _frameReader = new FrameReader(_stream);
         _frameWriter = new FrameWriter(_stream);
+
+        _assembler = new H264AccessUnitAssembler();
+        _decoder = new H264Decoder();
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -300,7 +307,7 @@ public class OpenDisplayConnection
 
     private void HandleVideoFrame(byte[] frame)
     {
-        var accessUnit =
+        var nalUnits =
             H264AnnexBParser.Parse(frame);
 
         Console.WriteLine(
@@ -308,16 +315,14 @@ public class OpenDisplayConnection
             $"({frame.Length} bytes)"
         );
 
-        Console.WriteLine(
-            $"[OpenDisplay]    NALs: {accessUnit.Count}"
-        );
-
-        foreach (var nal in accessUnit)
+        foreach (var nal in nalUnits)
         {
-            Console.WriteLine(
-                $"[OpenDisplay]    {nal.Type} " +
-                $"({nal.Data.Length} bytes)"
-            );
+            var accessUnits = _assembler.Add(nal);
+
+            foreach (var accessUnit in accessUnits)
+            {
+                _decoder.Decode(accessUnit);
+            }
         }
     }
 
