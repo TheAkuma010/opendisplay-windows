@@ -1,2 +1,4 @@
 OpenDisplay.Windows/bin/
 OpenDisplay.Windows/obj/
+OpenDisplay.TestSender/obj/
+OpenDisplay.Protocol/obj/
