@@ -4,6 +4,10 @@
     <ProjectReference Include="..\OpenDisplay.Protocol\OpenDisplay.Protocol.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="FFmpeg.AutoGen" Version="9.0.1.1" />
+  </ItemGroup>
+
   <PropertyGroup>
     <!-- DEPOIS TROCAR DE VOLTA PARA 'WinExe' -->
     <!-- <OutputType>WinExe</OutputType> -->
