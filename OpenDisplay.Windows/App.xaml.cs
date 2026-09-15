@@ -20,6 +20,10 @@ public partial class App : Application
 
         FFmpegLoader.Initialize();
 
+        var window = new MainWindow();
+
+        window.Show();
+
         _cancellationTokenSource = new CancellationTokenSource();
 
         var display = new DisplayConfiguration();
@@ -28,6 +32,13 @@ public partial class App : Application
 
         _server = new OpenDisplayServer(9000, display, identity);
 
+        _server.FrameReceived += (_, frameArgs) =>
+        {
+            window.DisplayFrame(
+                frameArgs.Frame
+            );
+        };
+
         _ = RunServerAsync(_cancellationTokenSource.Token);
     }
 
@@ -35,6 +46,9 @@ public partial class App : Application
     {
         try
         {
+            if (_server == null)
+                return;
+
             await _server!.StartAsync(cancellationToken);
         }
         catch (OperationCanceledException)

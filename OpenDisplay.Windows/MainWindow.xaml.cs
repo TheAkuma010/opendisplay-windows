@@ -18,6 +18,7 @@ namespace OpenDisplay.Windows;
 /// </summary>
 public partial class MainWindow : Window
 {
+    private WriteableBitmap? _bitmap;
     public MainWindow()
     {
         InitializeComponent();

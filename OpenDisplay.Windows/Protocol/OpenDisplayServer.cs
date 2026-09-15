@@ -1,13 +1,14 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Diagnostics;
+using OpenDisplay.Windows.Video;
 
 namespace OpenDisplay.Windows.Protocol;
 
 public class OpenDisplayServer
 {
+    public event EventHandler<VideoFrameReceivedEventArgs>? FrameReceived;
     private readonly TcpListener _listener;
-
     private readonly DisplayConfiguration _display;
     private readonly ReceiverIdentity _identity;
 
@@ -50,6 +51,17 @@ public class OpenDisplayServer
     {
         var connection = new OpenDisplayConnection(client, _display, _identity);
 
+        connection.FrameReceived += OnFrameReceived;
+
         await connection.RunAsync(cancellationToken);
     }
+
+    private void OnFrameReceived(object? sender, VideoFrameReceivedEventArgs e)
+    {
+        FrameReceived?.Invoke(
+            this,
+            e
+        );
+    }
+    
 }

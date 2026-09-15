@@ -10,6 +10,7 @@ namespace OpenDisplay.Windows.Protocol;
 
 public class OpenDisplayConnection
 {
+    public event EventHandler<VideoFrameReceivedEventArgs>? FrameReceived;
     private readonly TcpClient _client;
     private readonly NetworkStream _stream;
 
@@ -327,6 +328,11 @@ public class OpenDisplayConnection
                         $"[Video] BGRA frame: " +
                         $"{decodedFrame.Width}x{decodedFrame.Height}, " +
                         $"{decodedFrame.Data.Length} bytes"
+                    );
+
+                    FrameReceived?.Invoke(
+                        this,
+                        new VideoFrameReceivedEventArgs(decodedFrame)
                     );
                 }
             }
