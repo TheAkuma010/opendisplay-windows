@@ -12,10 +12,18 @@ public class OpenDisplayConnection
     private readonly FrameReader _frameReader;
     private readonly FrameWriter _frameWriter;
 
-    public OpenDisplayConnection(TcpClient client)
+    private readonly DisplayConfiguration _display;
+    private readonly ReceiverIdentity _identity;
+
+    public OpenDisplayConnection(TcpClient client, DisplayConfiguration display, ReceiverIdentity identity)
     {
         _client = client;
-        _stream = client.GetStream();
+        _display = display;
+        _identity = identity;
+
+        _client.NoDelay = true;
+
+        _stream = _client.GetStream();
 
         _frameReader = new FrameReader(_stream);
         _frameWriter = new FrameWriter(_stream);
@@ -31,26 +39,29 @@ public class OpenDisplayConnection
 
         try
         {
-            while (!cancellationToken.IsCancellationRequested)
+            await SendHelloAsync(cancellationToken);
+
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            var pingTask = RunPingLoopAsync(linkedCts.Token);
+
+            try
             {
-                var frame = await _frameReader.ReadFrameAsync(cancellationToken);
-
-                if (MessageParser.IsJson(frame))
-                {
-                    using var json = MessageParser.ParseJson(frame);
-
-                    Console.WriteLine(
-                        $"[OpenDisplay] JSON received: {json.RootElement}"
-                    );
-                }
-                else
-                {
-                    Console.WriteLine(
-                        $"[OpenDisplay] Binary frame: {frame.Length} bytes"
-                    );  
-                }
-
+                await ReceiveLoopAsync(linkedCts.Token);
             }
+            finally
+            {
+                linkedCts.Cancel();
+
+                try
+                {
+                    await pingTask;
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            }
+            
         }
         catch (EndOfStreamException)
         {
@@ -76,5 +87,186 @@ public class OpenDisplayConnection
                 $"[OpenDisplay] Connection ended: {remoteEndPoint}"
             );
         }
+    }
+
+    private async Task SendHelloAsync(CancellationToken cancellationToken)
+    {
+        var message = new HelloMessage
+        {
+            PixelsWide = _display.PixelsWide,
+            PixelsHigh = _display.PixelsHigh,
+            Scale = _display.Scale,
+            Device = _display.Device,
+            Id = _identity.Id,
+            ProtocolVersion = _display.ProtocolVersion,
+        };
+
+        var payload = MessageSerializer.Serialize(message);
+
+        await _frameWriter.WriteFrameAsync(payload, cancellationToken);
+
+        Debug.WriteLine(
+            "[OpenDisplay] → hello"
+        );
+
+        Debug.WriteLine(
+            $"[OpenDisplay]    " +
+            $"{_display.PixelsWide} x {_display.PixelsHigh}"
+        );
+
+        Debug.WriteLine(
+            $"[OpenDisplay]    " +
+            $"scale={_display.Scale}"
+        );
+
+        Debug.WriteLine(
+            $"[OpenDisplay]    " +
+            $"pv={_display.ProtocolVersion}"
+        );
+
+        Debug.WriteLine(
+            $"[OpenDisplay]    " +
+            $"id={_identity.Id}"
+        );
+    }
+
+    private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var frame = await _frameReader.ReadFrameAsync(cancellationToken);
+
+            if (MessageParser.IsJson(frame))
+            {
+                await HandleJsonMessageAsync(frame, cancellationToken);
+            }
+            else
+            {
+                HandleVideoFrame(frame);
+            }
+        }
+    }
+
+    private async Task HandleJsonMessageAsync(byte[] frame, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(frame);
+
+            var root = document.RootElement;
+
+            if (!root.TryGetProperty("type", out var typeProperty))
+            {
+                Debug.WriteLine(
+                    "[OpenDisplay] Ignoring JSON without type."
+                );
+
+                return;
+            }
+
+            var type = typeProperty.GetString();
+
+            switch (type)
+            {
+                case "welcome":
+                    HandleWelcome(root);
+                    break;
+                case "ping":
+                    await HandlePingAsync(
+                        root,
+                        cancellationToken
+                    );
+                    break;
+                case "cursor":
+                    Debug.WriteLine(
+                        "[OpenDisplay] ← cursor"
+                    );
+                    break;
+                case "cursorImg":
+                    Debug.WriteLine(
+                        "[OpenDisplay] ← cursorImg"
+                    );
+                    break;
+                case "updateRequired":
+                    Debug.WriteLine(
+                        "[OpenDisplay] ← updateRequired"
+                    );
+                    break;
+                default:
+                    Debug.WriteLine(
+                        $"[OpenDisplay] Ignoring unknown " +
+                        $"message type: {type}"
+                    );
+                    break;
+            }
+        }
+        catch (JsonException ex)
+        {
+            Debug.WriteLine(
+                $"[OpenDisplay] Invalid JSON: {ex.Message}"
+            );
+        }
+    }
+
+    private void HandleWelcome(JsonElement root)
+    {
+        var pv = 
+            root.TryGetProperty(
+                "pv",
+                out var pvProperty)
+                ? pvProperty.GetInt32()
+                : 1;
+
+        var minimum = 
+            root.TryGetProperty(
+                "min",
+                out var minProperty)
+                ? minProperty.GetInt32()
+                : 1;
+
+        Debug.WriteLine(
+            $"[OpenDisplay] ← welcome: " +
+            $"pv={pv}, min={minimum}"
+        );
+
+        if (pv < _display.ProtocolVersion)
+        {
+            Debug.WriteLine(
+                $"[OpenDisplay] Warning: sender uses " +
+                $"an older protocol version."
+            );
+        }
+
+        if (_display.ProtocolVersion < minimum)
+        {
+            Debug.WriteLine(
+                $"[OpenDisplay] Warning: sender requires " +
+                $"a newer protocol version."
+            );
+        }
+    }
+
+    private async Task HandlePingAsync(JsonElement root, CancellationToken cancellationToken)
+    {
+        if (!root.TryGetProperty("t", out var timestampProperty))
+        {
+            return;
+        }
+
+        var timestamp = timestampProperty.GetInt64();
+
+        var response = new PongMessage
+        {
+            Timestamp = timestamp,
+            senderTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+
+        var payload = MessageSerializer.Serialize(response);
+
+        await _frameWrite.WriteFrameAsync(payload, cancellationToken);
+
+        Debug.WriteLine(
+            "[OpenDisplay] → pong"
+        );
     }
 }
