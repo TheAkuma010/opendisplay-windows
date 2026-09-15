@@ -269,4 +269,33 @@ public class OpenDisplayConnection
             "[OpenDisplay] → pong"
         );
     }
+
+    private async Task RunPingLoopAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+
+        while (await timer.WaitForNextTickAsync(cancellationToken))
+        {
+            var message = new PingMessage
+            {
+                Timestamp = DateTImeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
+
+            var payload = MessageSerializer.Serialize(message);
+
+            await _frameWriter.WriteFrameAsync(payload, cancellationToken);
+
+            Debug.WriteLine(
+                "[OpenDisplay] → ping"
+            );
+        }
+    }
+
+    private void HandleVideoFrame(byte[] frame)
+    {
+        Debug.WriteLine(
+            $"[OpenDisplay] ← video frame: " +
+            $"({frame.Length} bytes)"
+        );
+    }
 }

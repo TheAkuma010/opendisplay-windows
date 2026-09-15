@@ -8,9 +8,14 @@ public class OpenDisplayServer
 {
     private readonly TcpListener _listener;
 
-    public OpenDisplayServer(int port)
+    private readonly DisplayConfiguration _display;
+    private readonly ReceiverIdentity _identity;
+
+    public OpenDisplayServer(int port, DisplayConfiguration display, ReceiverIdentity identity)
     {
         _listener = new TcpListener(IPAddress.Any, port);
+        _display = display;
+        _identity = identity;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -32,7 +37,7 @@ public class OpenDisplayServer
         }
         catch (OperationCanceledException)
         {
-            // Graceful shutdown
+            
         }
         finally
         {
@@ -43,7 +48,7 @@ public class OpenDisplayServer
 
     private async Task HandleClientAsync(TcpClient client, CancellationToken cancellationToken)
     {
-        var connection = new OpenDisplayConnection(client);
+        var connection = new OpenDisplayConnection(client, _display, _identity);
 
         await connection.RunAsync(cancellationToken);
     }
