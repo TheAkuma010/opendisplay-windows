@@ -2,6 +2,7 @@
 using System.Data;
 using System.Windows;
 using OpenDisplay.Windows.Protocol;
+using OpenDisplay.Windows.Video;
 
 namespace OpenDisplay.Windows;
 
@@ -16,6 +17,10 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        FFmpegLoader.Initialize();
+
+        using var decoder = new H264Decoder();
 
         _cancellationTokenSource = new CancellationTokenSource();
 
