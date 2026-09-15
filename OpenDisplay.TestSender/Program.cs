@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using System.Text.Json;
 using OpenDisplay.Protocol;
+using OpenDisplay.Protocol.Video;
 
 Console.WriteLine("==============================");
 Console.WriteLine("=  OpenDisplay Test Sender   =");
@@ -119,22 +120,123 @@ Console.WriteLine(
     $"   mt: {pong.GetProperty("mt").GetInt64()}"
 );
 
-var fakeVideo = new byte[]
-{
-    0x00, 0x00, 0x00, 0x01,
-    0x67, 0x42, 0x00, 0x1F,
-    0x00, 0x00, 0x00, 0x01,
-    0x68, 0xCE, 0x3C, 0x80
-};
+var videoPath =
+    Path.Combine(
+        AppContext.BaseDirectory,
+        "..",
+        "..",
+        "..",
+        "..",
+        "TestAssets",
+        "test.h264"
+    );
 
-await writer.WriteFrameAsync(
-    fakeVideo,
-    CancellationToken.None
+videoPath =
+    Path.GetFullPath(videoPath);
+
+Console.WriteLine();
+Console.WriteLine(
+    $"Lendo vídeo: {videoPath}"
 );
+
+var h264Data =
+    await File.ReadAllBytesAsync(videoPath);
 
 Console.WriteLine(
-    $"→ fake video ({fakeVideo.Length} bytes)"
+    $"Arquivo H.264: {h264Data.Length} bytes"
 );
+
+var nalUnits =
+    H264AnnexBParser.Parse(h264Data);
+
+var assembler =
+    new H264AccessUnitAssembler();
+
+var accessUnits =
+    new List<H264AccessUnit>();
+
+foreach (var nal in nalUnits)
+{
+    var completed =
+        assembler.Add(nal);
+
+    accessUnits.AddRange(completed);
+}
+
+var last =
+    assembler.Flush();
+
+if (last is not null)
+{
+    accessUnits.Add(last);
+}
+
+Console.WriteLine();
+Console.WriteLine(
+    $"Iniciando transmissão de {accessUnits.Count} Access Units..."
+);
+
+for (var i = 0; i < accessUnits.Count; i++)
+{
+    var accessUnit =
+        accessUnits[i];
+
+    var payload =
+        accessUnit.ToAnnexB();
+
+    await writer.WriteFrameAsync(
+        payload,
+        CancellationToken.None
+    );
+
+    Console.WriteLine(
+        $"→ AU #{i} " +
+        $"({payload.Length} bytes) " +
+        $"keyframe={accessUnit.IsKeyFrame}"
+    );
+
+    // 30 FPS ≈ 33,33 ms por frame.
+    await Task.Delay(
+        TimeSpan.FromMilliseconds(33),
+        CancellationToken.None
+    );
+}
+
+Console.WriteLine();
+Console.WriteLine("Transmissão concluída.");
+
+Console.WriteLine();
+
+Console.WriteLine(
+    $"Access Units encontrados: {accessUnits.Count}"
+);
+
+for (
+    var i = 0;
+    i < Math.Min(accessUnits.Count, 10);
+    i++)
+{
+    var accessUnit =
+        accessUnits[i];
+
+    Console.WriteLine(
+        $"  AU #{i}: " +
+        $"{accessUnit.NalUnits.Count} NAL(s), " +
+        $"keyframe={accessUnit.IsKeyFrame}, " +
+        $"size={accessUnit.ToAnnexB().Length} bytes"
+    );
+}
+
+Console.WriteLine(
+    $"NAL units encontrados: {nalUnits.Count}"
+);
+
+foreach (var nal in nalUnits)
+{
+    Console.WriteLine(
+        $"  {nal.Type,-14} {nal.Data.Length,8} bytes"
+    );
+}
 
 Console.WriteLine();
 Console.WriteLine("Teste concluído.");

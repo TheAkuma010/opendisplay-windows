@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 using OpenDisplay.Protocol;
+using OpenDisplay.Protocol.Video;
 
 namespace OpenDisplay.Windows.Protocol;
 
@@ -65,7 +66,7 @@ public class OpenDisplayConnection
                 {
                 }
             }
-            
+
         }
         catch (EndOfStreamException)
         {
@@ -75,7 +76,7 @@ public class OpenDisplayConnection
         }
         catch (OperationCanceledException)
         {
-            
+
         }
         catch (Exception ex)
         {
@@ -216,14 +217,14 @@ public class OpenDisplayConnection
 
     private void HandleWelcome(JsonElement root)
     {
-        var pv = 
+        var pv =
             root.TryGetProperty(
                 "pv",
                 out var pvProperty)
                 ? pvProperty.GetInt32()
                 : 1;
 
-        var minimum = 
+        var minimum =
             root.TryGetProperty(
                 "min",
                 out var minProperty)
@@ -299,10 +300,25 @@ public class OpenDisplayConnection
 
     private void HandleVideoFrame(byte[] frame)
     {
+        var accessUnit =
+            H264AnnexBParser.Parse(frame);
+
         Console.WriteLine(
-            $"[OpenDisplay] ← video frame: " +
+            $"[OpenDisplay] ← video frame " +
             $"({frame.Length} bytes)"
         );
+
+        Console.WriteLine(
+            $"[OpenDisplay]    NALs: {accessUnit.Count}"
+        );
+
+        foreach (var nal in accessUnit)
+        {
+            Console.WriteLine(
+                $"[OpenDisplay]    {nal.Type} " +
+                $"({nal.Data.Length} bytes)"
+            );
+        }
     }
 
     private async Task SendControlMessageAsync<T>(T message, CancellationToken cancellationToken)
