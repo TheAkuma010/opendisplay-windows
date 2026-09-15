@@ -37,7 +37,7 @@ public class OpenDisplayConnection
     {
         var remoteEndPoint = _client.Client.RemoteEndPoint;
 
-        Debug.WriteLine(
+        Console.WriteLine(
             $"[OpenDisplay] Connection started: {remoteEndPoint}"
         );
 
@@ -69,7 +69,7 @@ public class OpenDisplayConnection
         }
         catch (EndOfStreamException)
         {
-            Debug.WriteLine(
+            Console.WriteLine(
                 $"[OpenDisplay] Connection close by client: {remoteEndPoint}"
             );
         }
@@ -79,7 +79,7 @@ public class OpenDisplayConnection
         }
         catch (Exception ex)
         {
-            Debug.WriteLine(
+            Console.WriteLine(
                 $"[OpenDisplay] Connection error: {ex.Message} from {remoteEndPoint}"
             );
         }
@@ -87,7 +87,7 @@ public class OpenDisplayConnection
         {
             _client.Close();
 
-            Debug.WriteLine(
+            Console.WriteLine(
                 $"[OpenDisplay] Connection ended: {remoteEndPoint}"
             );
         }
@@ -111,26 +111,26 @@ public class OpenDisplayConnection
 
         await SendControlMessageAsync(message, cancellationToken);
 
-        Debug.WriteLine(
+        Console.WriteLine(
             "[OpenDisplay] → hello"
         );
 
-        Debug.WriteLine(
+        Console.WriteLine(
             $"[OpenDisplay]    " +
             $"{_display.PixelsWide} x {_display.PixelsHigh}"
         );
 
-        Debug.WriteLine(
+        Console.WriteLine(
             $"[OpenDisplay]    " +
             $"scale={_display.Scale}"
         );
 
-        Debug.WriteLine(
+        Console.WriteLine(
             $"[OpenDisplay]    " +
             $"pv={_display.ProtocolVersion}"
         );
 
-        Debug.WriteLine(
+        Console.WriteLine(
             $"[OpenDisplay]    " +
             $"id={_identity.Id}"
         );
@@ -163,7 +163,7 @@ public class OpenDisplayConnection
 
             if (!root.TryGetProperty("type", out var typeProperty))
             {
-                Debug.WriteLine(
+                Console.WriteLine(
                     "[OpenDisplay] Ignoring JSON without type."
                 );
 
@@ -184,22 +184,22 @@ public class OpenDisplayConnection
                     );
                     break;
                 case "cursor":
-                    Debug.WriteLine(
+                    Console.WriteLine(
                         "[OpenDisplay] ← cursor"
                     );
                     break;
                 case "cursorImg":
-                    Debug.WriteLine(
+                    Console.WriteLine(
                         "[OpenDisplay] ← cursorImg"
                     );
                     break;
                 case "updateRequired":
-                    Debug.WriteLine(
+                    Console.WriteLine(
                         "[OpenDisplay] ← updateRequired"
                     );
                     break;
                 default:
-                    Debug.WriteLine(
+                    Console.WriteLine(
                         $"[OpenDisplay] Ignoring unknown " +
                         $"message type: {type}"
                     );
@@ -208,7 +208,7 @@ public class OpenDisplayConnection
         }
         catch (JsonException ex)
         {
-            Debug.WriteLine(
+            Console.WriteLine(
                 $"[OpenDisplay] Invalid JSON: {ex.Message}"
             );
         }
@@ -230,14 +230,14 @@ public class OpenDisplayConnection
                 ? minProperty.GetInt32()
                 : 1;
 
-        Debug.WriteLine(
+        Console.WriteLine(
             $"[OpenDisplay] ← welcome: " +
             $"pv={pv}, min={minimum}"
         );
 
         if (pv < _display.ProtocolVersion)
         {
-            Debug.WriteLine(
+            Console.WriteLine(
                 $"[OpenDisplay] Warning: sender uses " +
                 $"an older protocol version."
             );
@@ -245,7 +245,7 @@ public class OpenDisplayConnection
 
         if (_display.ProtocolVersion < minimum)
         {
-            Debug.WriteLine(
+            Console.WriteLine(
                 $"[OpenDisplay] Warning: sender requires " +
                 $"a newer protocol version."
             );
@@ -271,7 +271,7 @@ public class OpenDisplayConnection
 
         await SendControlMessageAsync(response, cancellationToken);
 
-        Debug.WriteLine(
+        Console.WriteLine(
             "[OpenDisplay] → pong"
         );
     }
@@ -291,7 +291,7 @@ public class OpenDisplayConnection
 
             await SendControlMessageAsync(message, cancellationToken);
 
-            Debug.WriteLine(
+            Console.WriteLine(
                 "[OpenDisplay] → ping"
             );
         }
@@ -299,7 +299,7 @@ public class OpenDisplayConnection
 
     private void HandleVideoFrame(byte[] frame)
     {
-        Debug.WriteLine(
+        Console.WriteLine(
             $"[OpenDisplay] ← video frame: " +
             $"({frame.Length} bytes)"
         );

@@ -22,7 +22,7 @@ public class OpenDisplayServer
     {
         _listener.Start();
 
-        Debug.WriteLine(
+        Console.WriteLine(
             $"[OpenDisplay] Listening on port {_listener.LocalEndpoint} for incoming connections..."
         );
 
@@ -42,7 +42,7 @@ public class OpenDisplayServer
         finally
         {
             _listener.Stop();
-            Debug.WriteLine("[OpenDisplay] Server stopped.");
+            Console.WriteLine("[OpenDisplay] Server stopped.");
         }
     }
 
