@@ -321,7 +321,14 @@ public class OpenDisplayConnection
 
             foreach (var accessUnit in accessUnits)
             {
-                _decoder.Decode(accessUnit);
+                foreach (var decodedFrame in _decoder.Decode(accessUnit))
+                {
+                    Console.WriteLine(
+                        $"[Video] BGRA frame: " +
+                        $"{decodedFrame.Width}x{decodedFrame.Height}, " +
+                        $"{decodedFrame.Data.Length} bytes"
+                    );
+                }
             }
         }
     }
