@@ -1,6 +1,7 @@
 using System.Net.Sockets;
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
 using OpenDisplay.Protocol;
 
 namespace OpenDisplay.Windows.Protocol;
@@ -15,6 +16,8 @@ public class OpenDisplayConnection
 
     private readonly DisplayConfiguration _display;
     private readonly ReceiverIdentity _identity;
+
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
 
     public OpenDisplayConnection(TcpClient client, DisplayConfiguration display, ReceiverIdentity identity)
     {
@@ -102,9 +105,11 @@ public class OpenDisplayConnection
             ProtocolVersion = _display.ProtocolVersion,
         };
 
-        var payload = MessageSerializer.Serialize(message);
+        // var payload = MessageSerializer.Serialize(message);
 
-        await _frameWriter.WriteFrameAsync(payload, cancellationToken);
+        // await _frameWriter.WriteFrameAsync(payload, cancellationToken);
+
+        await SendControlMessageAsync(message, cancellationToken);
 
         Debug.WriteLine(
             "[OpenDisplay] → hello"
@@ -259,12 +264,12 @@ public class OpenDisplayConnection
         var response = new PongMessage
         {
             Timestamp = timestamp,
-            senderTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            SenderTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
 
-        var payload = MessageSerializer.Serialize(response);
+        // var payload = MessageSerializer.Serialize(response);
 
-        await _frameWrite.WriteFrameAsync(payload, cancellationToken);
+        await SendControlMessageAsync(response, cancellationToken);
 
         Debug.WriteLine(
             "[OpenDisplay] → pong"
@@ -279,12 +284,12 @@ public class OpenDisplayConnection
         {
             var message = new PingMessage
             {
-                Timestamp = DateTImeOffset.UtcNow.ToUnixTimeMilliseconds()
+                Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
 
-            var payload = MessageSerializer.Serialize(message);
+            // var payload = MessageSerializer.Serialize(message);
 
-            await _frameWriter.WriteFrameAsync(payload, cancellationToken);
+            await SendControlMessageAsync(message, cancellationToken);
 
             Debug.WriteLine(
                 "[OpenDisplay] → ping"
@@ -298,5 +303,21 @@ public class OpenDisplayConnection
             $"[OpenDisplay] ← video frame: " +
             $"({frame.Length} bytes)"
         );
+    }
+
+    private async Task SendControlMessageAsync<T>(T message, CancellationToken cancellationToken)
+    {
+        var payload = MessageSerializer.Serialize(message);
+
+        await _writeLock.WaitAsync(cancellationToken);
+
+        try
+        {
+            await _frameWriter.WriteControlFrameAsync(payload, cancellationToken);
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
     }
 }

@@ -1,4 +1,6 @@
+using System;
 using System.Text;
+using System.IO;
 
 namespace OpenDisplay.Windows.Protocol;
 
@@ -11,8 +13,7 @@ public class ReceiverIdentity
     public ReceiverIdentity()
     {
         var directory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData
-            ),
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "OpenDisplay"
         );
 
@@ -29,9 +30,9 @@ public class ReceiverIdentity
         {
             var existingId = File.ReadAllText(_filePath).Trim();
 
-            if (Guid.TryParse(existingId, out _))
+            if (Guid.TryParse(existingId, out Guid parsedGuid))
             {
-                return existingId;
+                return parsedGuid.ToString();
             }
         }
 

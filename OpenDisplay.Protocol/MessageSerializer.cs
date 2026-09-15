@@ -1,4 +1,4 @@
-using Sytem.Text;
+using System.Text;
 using System.Text.Json;
 
 namespace OpenDisplay.Protocol;
