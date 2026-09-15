@@ -19,7 +19,11 @@ public partial class App : Application
 
         _cancellationTokenSource = new CancellationTokenSource();
 
-        _server = new OpenDisplayServer(9000);
+        var display = new DisplayConfiguration();
+
+        var identity = new ReceiverIdentity();
+
+        _server = new OpenDisplayServer(9000, display, identity);
 
         _ = RunServerAsync(_cancellationTokenSource.Token);
     }
