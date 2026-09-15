@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Net.Sockets;
+using System.IO;
 
 namespace OpenDisplay.Windows.Protocol;
 
@@ -16,7 +17,7 @@ public class FrameReader
     {
         var header = new byte[4];
 
-        await ReadExactlyAsync(header, cancellationToekn);
+        await ReadExactlyAsync(header, cancellationToken);
 
         var payloadLenght = BinaryPrimitives.ReadUInt32BigEndian(header);
 

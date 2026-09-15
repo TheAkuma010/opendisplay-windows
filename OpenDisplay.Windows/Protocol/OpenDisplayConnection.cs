@@ -1,5 +1,6 @@
 using System.Net.Sockets;
 using System.Diagnostics;
+using System.IO;
 
 namespace OpenDisplay.Windows.Protocol;
 
@@ -30,13 +31,25 @@ public class OpenDisplayConnection
 
         try
         {
-            while (!cancellationToklen.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 var frame = await _frameReader.ReadFrameAsync(cancellationToken);
 
-                Debug.WriteLine(
-                    $"[OpenDisplay] Frame received: {frame.Type} with {frame.bytes} bytes from {remoteEndPoint}"
-                );
+                if (MessageParser.IsJson(frame))
+                {
+                    using var json = MessageParser.ParseJson(frame);
+
+                    Console.WriteLine(
+                        $"[OpenDisplay] JSON received: {json.RootElement}"
+                    );
+                }
+                else
+                {
+                    Console.WriteLine(
+                        $"[OpenDisplay] Binary frame: {frame.Length} bytes"
+                    );  
+                }
+
             }
         }
         catch (EndOfStreamException)
