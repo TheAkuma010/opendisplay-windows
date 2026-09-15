@@ -1,6 +1,7 @@
 using System.Net.Sockets;
 using System.Diagnostics;
 using System.IO;
+using OpenDisplay.Protocol;
 
 namespace OpenDisplay.Windows.Protocol;
 
