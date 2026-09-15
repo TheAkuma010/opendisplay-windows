@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace OpenDisplay.Windows.Protocol;
+namespace OpenDisplay.Protocol;
 
 public class HelloMessage
 {

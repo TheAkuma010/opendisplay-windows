@@ -1,7 +1,7 @@
 using Sytem.Text;
 using System.Text.Json;
 
-namespace OpenDisplay.Windows.Protocol;
+namespace OpenDisplay.Protocol;
 
 public static class MessageSerializer
 {

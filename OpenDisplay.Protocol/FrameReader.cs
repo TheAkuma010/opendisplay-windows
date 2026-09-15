@@ -2,10 +2,11 @@ using System.Buffers.Binary;
 using System.Net.Sockets;
 using System.IO;
 
-namespace OpenDisplay.Windows.Protocol;
+namespace OpenDisplay.Protocol;
 
 public class FrameReader
 {
+    private const uint MaximumFrameSize = 64 * 1024 * 1024;
     private readonly NetworkStream _stream;
 
     public FrameReader(NetworkStream stream)
@@ -23,10 +24,15 @@ public class FrameReader
 
         if (payloadLenght == 0)
         {
-            return [];
+            throw new InvalidDataException("Frame payload length cannot be zero.");
         }
 
-        var payload = new byte[payloadLenght];
+        if (payloadLenght > MaximumFrameSize)
+        {
+            throw new InvalidDataException($"Frame payload length exceeds maximum allowed size of {MaximumFrameSize} bytes.");
+        }
+
+        var payload = new byte[(int)payloadLenght];
 
         await ReadExactlyAsync(payload, cancellationToken);
 

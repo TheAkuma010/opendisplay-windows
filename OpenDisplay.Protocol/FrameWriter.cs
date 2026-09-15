@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Net.Sockets;
 
-namespace OpenDisplay.Windows.Protocol;
+namespace OpenDisplay.Protocol;
 
 public class FrameWriter
 {
@@ -24,14 +24,6 @@ public class FrameWriter
             );
         }
 
-        if (payload.Length > MaximumControlFrameSize)
-        {
-            throw new ArgumentException(
-                $"Frame exceeds the OpenDisplay control frame limit.",
-                nameof(payload)
-            );
-        }
-
         var header = new byte[4];
 
         BinaryPrimitives.WriteUInt32BigEndian(
@@ -45,6 +37,32 @@ public class FrameWriter
         );
 
         await _stream.WriteAsync(
+            payload,
+            cancellationToken
+        );
+    }
+
+    public async Task WriteControlFrameAsync(
+        ReadOnlyMemory<byte> payload,
+        CancellationToken cancellationToken)
+    {
+        if (payload.Length == 0)
+        {
+            throw new ArgumentException(
+                "OpenDisplay control frames cannot be empty.",
+                nameof(payload)
+            );
+        }
+
+        if (payload.Length > MaximumControlFrameSize)
+        {
+            throw new ArgumentException(
+                $"OpenDisplay control frames cannot exceed {MaximumControlFrameSize} bytes.",
+                nameof(payload)
+            );
+        }
+
+        await WriteFrameAsync(
             payload,
             cancellationToken
         );

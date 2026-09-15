@@ -1,9 +1,11 @@
 using System.Text.Json;
 
-namespace OpenDisplay.Windows.Protocol;
+namespace OpenDisplay.Protocol;
 
 public static class MessageParser
 {
+    private const int MaximumJsonFrameSize = 32768;
+
     public static bool IsJson(ReadOnlySpan<byte> data)
     {
         if (data.IsEmpty)
@@ -11,10 +13,17 @@ public static class MessageParser
             return false;
         }
 
-        var first = data[0];
+        if (data.Length > MaximumJsonFrameSize)
+        {
+            return false;
+        }
 
-        return first == (byte)'{' ||
-               first == (byte)'[';
+        if (data[0] != (byte)'{')
+        {
+            return false;
+        }
+
+        return !data.Contains((byte)0);
     }
 
     public static JsonDocument ParseJson(ReadOnlyMemory<byte> data)
