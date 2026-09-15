@@ -20,8 +20,6 @@ public partial class App : Application
 
         FFmpegLoader.Initialize();
 
-        using var decoder = new H264Decoder();
-
         _cancellationTokenSource = new CancellationTokenSource();
 
         var display = new DisplayConfiguration();
